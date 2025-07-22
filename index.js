@@ -12,54 +12,62 @@ app.post("/sync", async (req, res) => {
 
   const page = await browser.newPage();
 
-  // Set your Framer session cookie
-  await page.setCookie({
-    name: "session",
-    value: "e6ea9a8c-0dba-49cf-9143-da3435312caf",
-    domain: ".framer.com",
-    path: "/",
-    httpOnly: false,
-    secure: true,
-  });
-
   try {
-    console.log("Navigating to Framer CMS...");
-    await page.goto("https://framer.com/projects/MotionLoop-Studio--HK5kUK0Zy8dDw1XQeqHw-cHtr6", {
-      waitUntil: "networkidle2",
+    // Set user agent to avoid being blocked
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    );
+
+    // Set session cookie
+    await page.setCookie({
+      name: "session",
+      value: "dee9a08a-49cf-9143-da3435312caf",
+      domain: ".framer.com",
+      path: "/",
+      httpOnly: false,
+      secure: true,
     });
 
-    // Wait and click Sync
-    await page.waitForSelector('button:text("Sync")', { timeout: 10000 });
-    await page.click('button:text("Sync")');
-    console.log("Clicked Sync");
+    console.log("Navigating to Framer CMS...");
+    await page.goto(
+      "https://framer.com/projects/MotionLoop-Studio--HK5kUK0Zy8dDw1XQeqHw-cHtr6?node=eTZMN8eWT",
+      {
+        waitUntil: "networkidle2",
+        timeout: 60000,
+      }
+    );
 
-    await page.waitForTimeout(4000); // Wait for sync to complete
+    // Click Sync
+    await page.waitForSelector('button:has-text("Sync")', { timeout: 15000 });
+    await page.click('button:has-text("Sync")');
+    console.log("✅ Clicked Sync");
+
+    await page.waitForTimeout(3000);
 
     // Click Publish
-    await page.waitForSelector('button:text("Publish")', { timeout: 10000 });
-    await page.click('button:text("Publish")');
-    console.log("Clicked Publish");
+    await page.waitForSelector('button:has-text("Publish")', { timeout: 15000 });
+    await page.click('button:has-text("Publish")');
+    console.log("✅ Clicked Publish");
 
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
 
-    // Click Update in modal
-    await page.waitForSelector('button:text("Update")', { timeout: 10000 });
-    await page.click('button:text("Update")');
-    console.log("Clicked Update");
+    // Click Update
+    await page.waitForSelector('button:has-text("Update")', { timeout: 15000 });
+    await page.click('button:has-text("Update")');
+    console.log("✅ Clicked Update");
 
     await page.waitForTimeout(3000);
     await browser.close();
 
-    res.json({ status: "Success", message: "Framer site synced and published!" });
+    res.json({ status: "Success", message: "Framer synced & published" });
   } catch (err) {
+    console.error("❌ Error:", err.message);
     await browser.close();
     res.status(500).json({ error: err.message });
   }
 });
 
 const PORT = process.env.PORT || 8080;
-
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
-
