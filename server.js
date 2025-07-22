@@ -1,20 +1,20 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const app = express();
 
 app.post('/trigger', async (req, res) => {
   try {
     const browser = await puppeteer.launch({
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
     const page = await browser.newPage();
     await page.goto('https://framer.com/projects');
-    
-    // your sync and publish logic here
-    
+
+    // Sync and publish logic will go here
+
     await browser.close();
     res.send('Done');
   } catch (err) {
