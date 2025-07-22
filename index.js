@@ -1,46 +1,65 @@
-// index.js
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const express = require('express');
-
 const app = express();
+
 const port = process.env.PORT || 3000;
 
-app.get('/', async (req, res) => {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-  const page = await browser.newPage();
+app.use(express.json()); // required to accept JSON body (even if empty)
 
-  const cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
-  await page.setCookie(...cookies);
+app.post('/sync', async (req, res) => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
 
-  await page.goto('https://framer.com/projects/', { waitUntil: 'networkidle2' });
+    const page = await browser.newPage();
 
-  await page.waitForSelector('a[href*="MotionLoop-Studio"]');
-  await page.click('a[href*="MotionLoop-Studio"]');
+    // Load cookies
+    const cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
+    await page.setCookie(...cookies);
 
-  await page.waitForSelector('button:has-text("CMS")');
-  await page.click('button:has-text("CMS")');
+    // Go to project dashboard
+    await page.goto('https://framer.com/projects/', { waitUntil: 'networkidle2' });
 
-  await page.waitForSelector('span:text("Airtable")');
-  await page.click('span:text("Airtable")');
+    // Click project
+    await page.waitForSelector('a[href*="MotionLoop-Studio"]');
+    await page.click('a[href*="MotionLoop-Studio"]');
 
-  await page.waitForSelector('button:has-text("Sync")', { timeout: 30000 });
-  await page.click('button:has-text("Sync")');
+    // Click CMS
+    await page.waitForSelector('button:has-text("CMS")');
+    await page.click('button:has-text("CMS")');
 
-  await page.waitForSelector('button:has-text("Publish")', { timeout: 30000 });
-  await page.click('button:has-text("Publish")');
+    // Click Airtable
+    await page.waitForSelector('span:text("Airtable")');
+    await page.click('span:text("Airtable")');
 
-  await page.waitForTimeout(3000);
-  await page.screenshot({ path: 'framer-publish-confirm.png', fullPage: true });
+    // Click Sync
+    await page.waitForSelector('button:has-text("Sync")', { timeout: 30000 });
+    await page.click('button:has-text("Sync")');
 
-  await browser.close();
+    // Click Publish
+    await page.waitForSelector('button:has-text("Publish")', { timeout: 30000 });
+    await page.click('button:has-text("Publish")');
 
-  res.send('✅ Synced and published with screenshot!');
+    // Wait + Screenshot
+    await page.waitForTimeout(3000);
+    await page.screenshot({ path: 'framer-publish-confirm.png', fullPage: true });
+
+    await browser.close();
+
+    res.status(200).json({ message: '✅ Synced and published successfully!' });
+  } catch (err) {
+    console.error('❌ Error during sync:', err);
+    res.status(500).json({ error: '❌ Sync failed', details: err.message });
+  }
+});
+
+app.get('/', (req, res) => {
+  res.send('🟢 Framer Auto Publisher is running');
 });
 
 app.listen(port, () => {
-  console.log(`✅ Server running at http://localhost:${port}`);
+  console.log(`🟢 Server live at http://localhost:${port}`);
 });
