@@ -7,6 +7,18 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "puppeteer": "^21.3.8"
-  }
+    "puppeteer": "^24.14.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Motionloop/framer-auto-publish.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Motionloop/framer-auto-publish/issues"
+  },
+  "homepage": "https://github.com/Motionloop/framer-auto-publish#readme",
+  "description": ""
 }
