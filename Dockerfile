@@ -1,4 +1,4 @@
-FROM zenika/node:18-chrome
+FROM ghcr.io/puppeteer/puppeteer:latest
 
 WORKDIR /app
 
