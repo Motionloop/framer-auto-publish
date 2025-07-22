@@ -12,41 +12,45 @@ app.post("/sync", async (req, res) => {
 
   const page = await browser.newPage();
 
+  // Set your Framer session cookie
+  await page.setCookie({
+    name: "session",
+    value: "e6ea9a8c-0dba-49cf-9143-da3435312caf",
+    domain: ".framer.com",
+    path: "/",
+    httpOnly: false,
+    secure: true,
+  });
+
   try {
-    // 1. Go to Framer login
-    await page.goto("https://framer.com/login", { waitUntil: "networkidle2" });
-
-    // 2. Login (replace with your credentials)
-    await page.type('input[name="email"]', "your@email.com", { delay: 50 });
-    await page.click("button[type=submit]");
-
-    await page.waitForTimeout(1000);
-    await page.type('input[name="password"]', "yourPassword", { delay: 50 });
-    await page.click("button[type=submit]");
-
-    // 3. Wait until logged in
-    await page.waitForNavigation({ waitUntil: "networkidle2" });
-
-    // 4. Go to your specific site’s dashboard
-    await page.goto("https://framer.com/projects/YOUR_PROJECT_ID", {
+    console.log("Navigating to Framer CMS...");
+    await page.goto("https://framer.com/projects/MotionLoop-Studio--HK5kUK0Zy8dDw1XQeqHw-cHtr6", {
       waitUntil: "networkidle2",
     });
 
-    // 5. Click "Sync"
-    await page.waitForSelector('button:has-text("Sync")');
-    await page.click('button:has-text("Sync")');
+    // Wait and click Sync
+    await page.waitForSelector('button:text("Sync")', { timeout: 10000 });
+    await page.click('button:text("Sync")');
+    console.log("Clicked Sync");
 
-    await page.waitForTimeout(3000); // wait for sync to finish
+    await page.waitForTimeout(4000); // Wait for sync to complete
 
-    // 6. Click "Publish" > "Update"
-    await page.click('button:has-text("Publish")');
+    // Click Publish
+    await page.waitForSelector('button:text("Publish")', { timeout: 10000 });
+    await page.click('button:text("Publish")');
+    console.log("Clicked Publish");
+
     await page.waitForTimeout(1000);
-    await page.click('button:has-text("Update")');
 
-    await page.waitForTimeout(3000); // wait to complete
+    // Click Update in modal
+    await page.waitForSelector('button:text("Update")', { timeout: 10000 });
+    await page.click('button:text("Update")');
+    console.log("Clicked Update");
+
+    await page.waitForTimeout(3000);
     await browser.close();
 
-    res.json({ status: "success", message: "Framer site synced & published" });
+    res.json({ status: "Success", message: "Framer site synced and published!" });
   } catch (err) {
     await browser.close();
     res.status(500).json({ error: err.message });
@@ -54,4 +58,4 @@ app.post("/sync", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Running on ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
