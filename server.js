@@ -24,7 +24,10 @@ app.post('/trigger', async (req, res) => {
     await page.waitForTimeout(4000);
 
     // Click Publish
-    await page.click('button:has-text("Publish")');
+   await page.click('button:has-text("Publish")'); // open dropdown
+await page.waitForSelector('button:has-text("Update")', { timeout: 5000 });
+await page.click('button:has-text("Update")');
+
 
     await page.waitForTimeout(3000);
     await browser.close();
