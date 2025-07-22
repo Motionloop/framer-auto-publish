@@ -1,8 +1,12 @@
 FROM node:20-slim
 
-# Install Chromium dependencies
+# Prevent Puppeteer from downloading Chromium (we install it ourselves)
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Install Chromium and dependencies
 RUN apt-get update && apt-get install -y \
-    wget \
+    chromium \
     ca-certificates \
     fonts-liberation \
     libappindicator3-1 \
@@ -16,7 +20,6 @@ RUN apt-get update && apt-get install -y \
     libexpat1 \
     libfontconfig1 \
     libgbm1 \
-    libgcc1 \
     libglib2.0-0 \
     libgtk-3-0 \
     libnspr4 \
@@ -31,17 +34,15 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libxss1 \
     libxtst6 \
-    lsb-release \
     xdg-utils \
-    && rm -rf /var/lib/apt/lists/*
+    wget && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set workdir and copy files
 WORKDIR /app
 COPY . .
 
-# Install dependencies
+# ✅ SKIP the Chromium download
 RUN npm install
 
-# Expose port and run app
 EXPOSE 3000
 CMD ["node", "index.js"]
