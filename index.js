@@ -1,36 +1,48 @@
+const express = require('express');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 
-(async () => {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+const app = express();
+app.use(express.json());
 
-  const page = await browser.newPage();
+app.post('/sync', async (req, res) => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
 
-  // Load cookies from file
-  const cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
-  await page.setCookie(...cookies);
+    const page = await browser.newPage();
 
-  // Go to Framer CMS page directly
-  await page.goto('https://framer.com/projects/MotionLoop-Studio--HK5kUK0Zy8dDw1XQeqHw-cHtr6/cms', {
-    waitUntil: 'networkidle2'
-  });
+    // Load cookies
+    const cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
+    await page.setCookie(...cookies);
 
-  console.log('🔍 Waiting for Sync button...');
-  await page.waitForSelector('button:has-text("Sync")', { timeout: 30000 });
+    // Go to Framer CMS
+    await page.goto('https://framer.com/projects/MotionLoop-Studio--HK5kUK0Zy8dDw1XQeqHw-cHtr6/cms', {
+      waitUntil: 'networkidle2'
+    });
 
-  // Click Sync
-  await page.click('button:has-text("Sync")');
-  console.log('✅ Clicked Sync');
+    console.log('🔍 Waiting for Sync button...');
+    await page.waitForSelector('button:has-text("Sync")', { timeout: 30000 });
+    await page.click('button:has-text("Sync")');
+    console.log('✅ Clicked Sync');
 
-  // Wait and click Publish
-  await page.waitForSelector('button:has-text("Publish")', { timeout: 30000 });
-  await page.click('button:has-text("Publish")');
-  console.log('🚀 Clicked Publish');
+    await page.waitForSelector('button:has-text("Publish")', { timeout: 30000 });
+    await page.click('button:has-text("Publish")');
+    console.log('🚀 Clicked Publish');
 
-  // Optional: wait before closing browser
-  await page.waitForTimeout(5000);
-  await browser.close();
-})();
+    await page.waitForTimeout(5000);
+    await browser.close();
+
+    res.status(200).json({ success: true, message: 'Synced and Published' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
