@@ -1,7 +1,6 @@
 // index.js
 import express from 'express';
 import { chromium } from 'playwright';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -11,64 +10,90 @@ const __dirname  = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Health check
+// Health‐check
 app.get('/', (_req, res) => {
   res.send('✅ Framer Auto-Publish service is running');
 });
 
-// Serve the latest screenshot
-app.get('/latest.png', (req, res) => {
-  const img = path.join(__dirname, 'latest.png');
-  if (fs.existsSync(img)) {
-    res.sendFile(img);
-  } else {
-    res.status(404).send('No screenshot available yet');
-  }
-});
-
+// Trigger Sync → Publish → Update
 app.get('/publish', async (_req, res) => {
   console.log('🔔 /publish called');
+  let browser, page;
   try {
-    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
     const context = await browser.newContext();
-    const page = await context.newPage();
+    page = await context.newPage();
 
-    // 1) Log in
-    await page.goto('https://framer.com/login', { waitUntil: 'load', timeout: 60000 });
-    await page.click('button:has-text("Continue with Google")', { timeout: 30000 });
-    await page.waitForURL(/accounts\.google\.com/, { timeout: 60000 });
+    // 1) Go to Framer login & click Google SSO
+    await page.goto('https://framer.com/login', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.click('button:has-text("Continue with Google")', { timeout: 60000 });
 
-    // Google SSO on same page
-    await page.fill('input[type="email"]', process.env.GOOGLE_EMAIL, { timeout: 30000 });
-    await page.click('button:has-text("Next")', { timeout: 30000 });
+    // 2) Fill Google SSO form
+    await page.waitForSelector('input[type="email"]', { timeout: 60000 });
+    await page.fill('input[type="email"]', process.env.GOOGLE_EMAIL);
+    await page.click('button:has-text("Next")', { timeout: 60000 });
     await page.waitForTimeout(2000);
-    await page.fill('input[type="password"]', process.env.GOOGLE_PASSWORD, { timeout: 30000 });
-    await page.click('button:has-text("Next")', { timeout: 30000 });
+    await page.waitForSelector('input[type="password"]', { timeout: 60000 });
+    await page.fill('input[type="password"]', process.env.GOOGLE_PASSWORD);
+    await page.click('button:has-text("Next")', { timeout: 60000 });
     await page.waitForLoadState('load', { timeout: 60000 });
 
-    // 2) Navigate to your project & CMS
-    await page.goto('https://framer.com/projects/', { waitUntil: 'load', timeout: 60000 });
+    // 3) Navigate to your project & CMS
+    await page.goto('https://framer.com/projects/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.click('text=MotionLoop Studio', { timeout: 60000 });
     await page.click('text=CMS',               { timeout: 60000 });
-
-    // 3) Sync → Publish → Update
+    
+    // 4) Sync → Publish → Update
     await page.click('text=Sync',    { timeout: 60000 });
     await page.click('text=Publish', { timeout: 60000 });
     await page.waitForSelector('button:has-text("Update")', { timeout: 60000 });
     await page.click('button:has-text("Update")', { timeout: 60000 });
-    console.log('✅ Update clicked');
-
-    // 4) Screenshot the final state
-    const buffer = await page.screenshot({ fullPage: true });
-    fs.writeFileSync(path.join(__dirname, 'latest.png'), buffer);
-    console.log('📸 Screenshot saved as latest.png');
 
     await browser.close();
-    console.log('🏁 Done');
+    console.log('🏁 Publish complete');
     return res.json({ success: true });
   } catch (err) {
-    console.error('❌ Error in /publish:', err);
+    console.error('❌ Error in /publish:', err.message);
+    if (page) {
+      try {
+        await page.screenshot({ path: path.join(__dirname, 'latest.png'), fullPage: true });
+        console.log('📸 Error screenshot saved');
+      } catch {}
+    }
+    if (browser) await browser.close();
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// On‐demand screenshot of your Framer projects page
+app.get('/latest.png', async (_req, res) => {
+  console.log('🔔 /latest.png called');
+  let browser, page;
+  try {
+    browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    const context = await browser.newContext();
+    page = await context.newPage();
+
+    // Navigate to your projects page
+    await page.goto('https://framer.com/projects/', { waitUntil: 'load', timeout: 60000 });
+    // (Optional) log in here if the session expired
+
+    const image = await page.screenshot({ fullPage: true });
+    await browser.close();
+
+    res.setHeader('Content-Type', 'image/png');
+    return res.send(image);
+  } catch (err) {
+    console.error('❌ Screenshot error:', err.message);
+    if (page) {
+      try {
+        const image = await page.screenshot({ fullPage: true });
+        res.setHeader('Content-Type', 'image/png');
+        return res.send(image);
+      } catch {}
+    }
+    if (browser) await browser.close();
+    return res.status(500).send('📸 Screenshot failed');
   }
 });
 
