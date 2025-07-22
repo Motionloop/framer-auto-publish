@@ -1,6 +1,6 @@
 // index.js
 const express = require('express');
-const fs = require('fs');
+const fs      = require('fs');
 const puppeteer = require('puppeteer');
 
 const app = express();
@@ -13,54 +13,54 @@ async function syncAndPublish() {
   const browser = await puppeteer.launch({
     headless: true,
     executablePath: CHROME,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: ['--no-sandbox','--disable-setuid-sandbox'],
   });
   const page = await browser.newPage();
 
-  // load your saved login cookies
-  const cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
+  // load saved cookies
+  const cookies = JSON.parse(fs.readFileSync('cookies.json','utf8'));
   await page.setCookie(...cookies);
 
-  // go to your projects list
+  // go to projects list
   await page.goto('https://framer.com/projects/', { waitUntil: 'networkidle2' });
 
-  // click your MotionLoop Studio project link
-  await page.waitForSelector('a[href*="MotionLoop-Studio"]', { visible: true });
-  await page.click('a[href*="MotionLoop-Studio"]');
+  // click your project link
+  const projectLink = await page.waitForSelector('a[href*="MotionLoop-Studio"]', { visible: true });
+  await projectLink.click();
 
-  // click the "CMS" button (XPath lookup)
-  const [cmsBtn] = await page.$x("//button[contains(., 'CMS')]");
+  // click CMS
+  const cmsBtn = await page.waitForXPath("//button[contains(normalize-space(.),'CMS')]", { visible: true, timeout: 30000 });
   await cmsBtn.click();
 
-  // switch to the Airtable tab
-  const [airtableTab] = await page.$x("//span[contains(., 'Airtable')]");
+  // switch to Airtable tab
+  const airtableTab = await page.waitForXPath("//span[contains(normalize-space(.),'Airtable')]", { visible: true });
   await airtableTab.click();
 
-  // hit Sync
-  const [syncBtn] = await page.$x("//button[contains(., 'Sync')]");
+  // Sync
+  const syncBtn = await page.waitForXPath("//button[contains(normalize-space(.),'Sync')]", { visible: true, timeout: 30000 });
   await syncBtn.click();
 
-  // then Publish
-  const [pubBtn] = await page.$x("//button[contains(., 'Publish')]");
+  // Publish
+  const pubBtn = await page.waitForXPath("//button[contains(normalize-space(.),'Publish')]", { visible: true, timeout: 30000 });
   await pubBtn.click();
 
-  // wait a moment, grab a screenshot for debugging if you like
+  // wait a moment, then screenshot
   await page.waitForTimeout(3000);
-  await page.screenshot({ path: 'framer-publish-confirm.png', fullPage: true });
-
+  const img = await page.screenshot({ fullPage: true });
   await browser.close();
+  return img;
 }
 
 app.post('/sync', async (req, res) => {
   try {
-    await syncAndPublish();
-    res.json({ success: true, message: '✅ Synced & published!' });
-  } catch (e) {
-    console.error('Sync error:', e);
-    res.status(500).json({ success: false, error: e.message });
+    const imgBuffer = await syncAndPublish();
+    const dataUrl = 'data:image/png;base64,' + imgBuffer.toString('base64');
+    return res.json({ success: true, screenshot: dataUrl });
+  } catch (err) {
+    console.error('Sync error:', err);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.get('/', (req, res) => res.send('🟢 Framer-Auto-Publish is up'));
-
+app.get('/', (_, res) => res.send('🟢 Framer Auto-Publish is running'));
 app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
