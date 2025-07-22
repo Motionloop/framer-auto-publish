@@ -1,65 +1,66 @@
-const puppeteer = require('puppeteer');
-const fs = require('fs');
+// index.js
 const express = require('express');
+const fs = require('fs');
+const puppeteer = require('puppeteer');
+
 const app = express();
+app.use(express.json());
 
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
+const CHROME = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
 
-app.use(express.json()); // required to accept JSON body (even if empty)
+async function syncAndPublish() {
+  const browser = await puppeteer.launch({
+    headless: true,
+    executablePath: CHROME,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+  const page = await browser.newPage();
+
+  // load your saved login cookies
+  const cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
+  await page.setCookie(...cookies);
+
+  // go to your projects list
+  await page.goto('https://framer.com/projects/', { waitUntil: 'networkidle2' });
+
+  // click your MotionLoop Studio project link
+  await page.waitForSelector('a[href*="MotionLoop-Studio"]', { visible: true });
+  await page.click('a[href*="MotionLoop-Studio"]');
+
+  // click the "CMS" button (XPath lookup)
+  const [cmsBtn] = await page.$x("//button[contains(., 'CMS')]");
+  await cmsBtn.click();
+
+  // switch to the Airtable tab
+  const [airtableTab] = await page.$x("//span[contains(., 'Airtable')]");
+  await airtableTab.click();
+
+  // hit Sync
+  const [syncBtn] = await page.$x("//button[contains(., 'Sync')]");
+  await syncBtn.click();
+
+  // then Publish
+  const [pubBtn] = await page.$x("//button[contains(., 'Publish')]");
+  await pubBtn.click();
+
+  // wait a moment, grab a screenshot for debugging if you like
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: 'framer-publish-confirm.png', fullPage: true });
+
+  await browser.close();
+}
 
 app.post('/sync', async (req, res) => {
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-
-    const page = await browser.newPage();
-
-    // Load cookies
-    const cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
-    await page.setCookie(...cookies);
-
-    // Go to project dashboard
-    await page.goto('https://framer.com/projects/', { waitUntil: 'networkidle2' });
-
-    // Click project
-    await page.waitForSelector('a[href*="MotionLoop-Studio"]');
-    await page.click('a[href*="MotionLoop-Studio"]');
-
-    // Click CMS
-    await page.waitForSelector('button:has-text("CMS")');
-    await page.click('button:has-text("CMS")');
-
-    // Click Airtable
-    await page.waitForSelector('span:text("Airtable")');
-    await page.click('span:text("Airtable")');
-
-    // Click Sync
-    await page.waitForSelector('button:has-text("Sync")', { timeout: 30000 });
-    await page.click('button:has-text("Sync")');
-
-    // Click Publish
-    await page.waitForSelector('button:has-text("Publish")', { timeout: 30000 });
-    await page.click('button:has-text("Publish")');
-
-    // Wait + Screenshot
-    await page.waitForTimeout(3000);
-    await page.screenshot({ path: 'framer-publish-confirm.png', fullPage: true });
-
-    await browser.close();
-
-    res.status(200).json({ message: '✅ Synced and published successfully!' });
-  } catch (err) {
-    console.error('❌ Error during sync:', err);
-    res.status(500).json({ error: '❌ Sync failed', details: err.message });
+    await syncAndPublish();
+    res.json({ success: true, message: '✅ Synced & published!' });
+  } catch (e) {
+    console.error('Sync error:', e);
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
-app.get('/', (req, res) => {
-  res.send('🟢 Framer Auto Publisher is running');
-});
+app.get('/', (req, res) => res.send('🟢 Framer-Auto-Publish is up'));
 
-app.listen(port, () => {
-  console.log(`🟢 Server live at http://localhost:${port}`);
-});
+app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
