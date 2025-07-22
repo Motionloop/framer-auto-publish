@@ -37,6 +37,10 @@ app.post("/sync", async (req, res) => {
       }
     );
 
+    await page.screenshot({ path: "framer-debug.png", fullPage: true });
+console.log("📸 Screenshot taken");
+
+
     // Click Sync
     await page.waitForSelector('button:has-text("Sync")', { timeout: 15000 });
     await page.click('button:has-text("Sync")');
