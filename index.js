@@ -9,24 +9,23 @@ const fs = require('fs');
   const cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
   await page.setCookie(...cookies);
 
-  // Go to your Framer project directly
+  // Go to your Framer project
   await page.goto('https://framer.com/projects/MotionLoop-Studio--HK5kUK0Zy8dDw1XQeqHw-cHtr6', {
     waitUntil: 'networkidle2',
   });
 
   console.log('🔍 Waiting for Sync button...');
-  await page.waitForSelector('button:has-text("Sync")', { timeout: 30000 });
-
-  // Click Sync
-  await page.click('button:has-text("Sync")');
+  const [syncBtn] = await page.$x("//button[contains(., 'Sync')]");
+  if (!syncBtn) throw new Error("Sync button not found");
+  await syncBtn.click();
   console.log('✅ Clicked Sync');
 
-  // Wait and click Publish
-  await page.waitForSelector('button:has-text("Publish")', { timeout: 30000 });
-  await page.click('button:has-text("Publish")');
+  console.log('🔍 Waiting for Publish button...');
+  const [publishBtn] = await page.$x("//button[contains(., 'Publish')]");
+  if (!publishBtn) throw new Error("Publish button not found");
+  await publishBtn.click();
   console.log('🚀 Clicked Publish');
 
-  // Optional: wait before closing browser
   await page.waitForTimeout(5000);
   await browser.close();
 })();
