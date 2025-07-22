@@ -1,48 +1,59 @@
-const express = require('express');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
-
+const express = require('express');
 const app = express();
+
 app.use(express.json());
 
 app.post('/sync', async (req, res) => {
-  try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox'],
+  });
 
+  try {
     const page = await browser.newPage();
 
     // Load cookies
     const cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
     await page.setCookie(...cookies);
 
-    // Go to Framer CMS
+    // Go to CMS page
     await page.goto('https://framer.com/projects/MotionLoop-Studio--HK5kUK0Zy8dDw1XQeqHw-cHtr6/cms', {
-      waitUntil: 'networkidle2'
+      waitUntil: 'networkidle2',
     });
 
-    console.log('🔍 Waiting for Sync button...');
-    await page.waitForSelector('button:has-text("Sync")', { timeout: 30000 });
-    await page.click('button:has-text("Sync")');
+    // Take screenshot for debug
+    await page.screenshot({ path: 'screenshot.png', fullPage: true });
+
+    // Try to find Sync button using XPath
+    const [syncBtn] = await page.$x("//button[contains(text(), 'Sync')]");
+    if (!syncBtn) throw new Error("❌ 'Sync' button not found");
+
+    await syncBtn.click();
     console.log('✅ Clicked Sync');
 
-    await page.waitForSelector('button:has-text("Publish")', { timeout: 30000 });
-    await page.click('button:has-text("Publish")');
+    await page.waitForXPath("//button[contains(text(), 'Publish')]", { timeout: 30000 });
+    const [publishBtn] = await page.$x("//button[contains(text(), 'Publish')]");
+    await publishBtn.click();
     console.log('🚀 Clicked Publish');
 
     await page.waitForTimeout(5000);
     await browser.close();
 
-    res.status(200).json({ success: true, message: 'Synced and Published' });
+    res.status(200).send("✅ Synced and Published!");
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: err.message });
+    await page.screenshot({ path: 'error.png', fullPage: true });
+
+    const buffer = fs.readFileSync('error.png');
+    res.writeHead(500, {
+      'Content-Type': 'image/png',
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
   }
 });
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(process.env.PORT || 8080, () => {
+  console.log('🚀 Server running...');
 });
