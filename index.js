@@ -1,6 +1,12 @@
 const puppeteer = require("puppeteer");
 const express = require("express");
 const app = express();
+const path = require("path");
+app.get("/screenshot", (req, res) => {
+  const screenshotPath = path.join(__dirname, "framer-debug.png");
+  res.sendFile(screenshotPath);
+});
+
 
 app.use(express.json());
 
